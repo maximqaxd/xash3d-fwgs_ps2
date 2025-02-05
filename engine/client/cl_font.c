@@ -510,6 +510,7 @@ CHARINFO* Font_GetChar(Font* self, int ch)
 int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int flags)
 {
 	CHARINFO* pCharInfo;
+	float new_x, new_y, new_w, new_h;
 
 	if (!stbtt_FindGlyphIndex( &g_currentFont->m_FontInfo, number ))
 	{
@@ -539,7 +540,6 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 	if( !FBitSet( flags, FONT_DRAW_NORENDERMODE ))
 		CL_SetFontRendermode( font );
 
-	float new_x, new_y, new_w, new_h;
 	new_x = x;
 	new_y = y + (pCharInfo->m_iYOff + g_currentFont->m_iHeight) * font->scale;
 	new_w = pCharInfo->m_iWidth * font->scale;
