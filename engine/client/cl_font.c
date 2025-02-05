@@ -421,6 +421,8 @@ qboolean Font_Init(Font* self, char* name, int tall)
 	if( !self )
 		return false;
 
+	self->m_bIsLoaded = false;
+
 	COM_FreeFile(self->m_pFontData);
 	self->m_pFontData = COM_LoadFileForMe( name, &len );
 	if (self->m_pFontData == NULL)
@@ -437,6 +439,8 @@ qboolean Font_Init(Font* self, char* name, int tall)
 	stbtt_GetFontBoundingBox( &self->m_FontInfo, &x0, &y0, &x1, &y1 );
 	self->m_iHeight = round(( y1 - y0 ) * self->scale ); // maybe wrong!
 	self->m_iMaxCharWidth = round(( x1 - x0 ) * self->scale ); // maybe wrong!
+
+	self->m_bIsLoaded = true;
 
 	return true;
 }
@@ -512,14 +516,14 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 	CHARINFO* pCharInfo;
 	float new_x, new_y, new_w, new_h;
 
-	if (!stbtt_FindGlyphIndex( &g_currentFont->m_FontInfo, number ))
+	if (!g_currentFont->m_bIsLoaded || !stbtt_FindGlyphIndex( &g_currentFont->m_FontInfo, number ))
 	{
 		for (int i = 0; i < FONT_COUNT; i++)
 		{
-			if (!stbtt_FindGlyphIndex( &g_Fonts[i].m_FontInfo, number ))
+			if (!g_Fonts[i].m_bIsLoaded || !stbtt_FindGlyphIndex( &g_Fonts[i].m_FontInfo, number ))
 				continue;
-			g_currentFont = &g_Fonts[i];
-			break;
+			else
+				break;
 		}
 		return 0;
 	}

@@ -29,6 +29,7 @@ typedef struct {
 typedef struct {
 	byte *m_pFontData;
 	stbtt_fontinfo m_FontInfo;
+	qboolean m_bIsLoaded;
 	
 	double scale;
 	
