@@ -25,7 +25,7 @@ GNU General Public License for more details.
 static Font g_Fonts[FONT_COUNT];
 static string g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
 static int g_FontsSize[FONT_COUNT] = { 13, 13 };
-static rgba_t nullColor = { 255, 255, 255, 255 };
+static rgba_t nullColor = { 0, 0, 0, 0 };
 static Font* g_currentFont;
 
 qboolean CL_FixedFont( cl_font_t *font )
@@ -540,6 +540,9 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 	pCharInfo = Font_GetChar(g_currentFont, number);
 	if (pCharInfo == NULL)
 		return 0;
+
+	if (color == nullColor)
+		return (pCharInfo->m_iXOff + pCharInfo->m_iWidth) * font->scale;
 	
 	if( !FBitSet( flags, FONT_DRAW_NORENDERMODE ))
 		CL_SetFontRendermode( font );
