@@ -1986,7 +1986,7 @@ static int GAME_EXPORT pfnDrawCharacter( int x, int y, int number, int r, int g,
 	if( hud_utf8.value )
 		flags |= FONT_DRAW_UTF8;
 
-	return CL_DrawCharacter( x, y, number, color, &cls.creditsFont, flags );
+	return CL_DrawCharacter( x, y, Con_UtfProcessChar(number), color, &cls.creditsFont, flags );
 }
 
 /*

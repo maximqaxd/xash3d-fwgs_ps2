@@ -23,14 +23,12 @@ typedef struct {
 	int m_iTexture;
 	int m_iWidth,m_iHeight;
 	int m_iXOff,m_iYOff;
-	byte *pTexture;
-	int m_iCharWidth;
-	int Char;
+	int m_iChar;
 } CHARINFO;
 
 typedef struct {
 	byte *m_pFontData;
-	stbtt_fontinfo m_fontInfo;
+	stbtt_fontinfo m_FontInfo;
 	
 	double scale;
 	
@@ -38,7 +36,7 @@ typedef struct {
     int m_iCharCount;
     int m_iWidth, m_iHeight;
     int m_iBuffer[FONTS_MAX_BUFFER];
-    CHARINFO m_tFontTexture[FONTS_MAX_BUFFER];
+    CHARINFO m_Char[FONTS_MAX_BUFFER];
 } Font;
 
 int Font_Init(Font* self, char* name, int tall);
@@ -47,4 +45,5 @@ int Font_LoadChar(Font* self, int ch);
 CHARINFO* Font_GetChar(Font* self, int ch);
 int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int flags);
 void Font_SetWidth(Font* self, int iWidth);
+int Font_GetTexIndex( Font *self, int codepoint );
 #endif // CL_FONT_H
