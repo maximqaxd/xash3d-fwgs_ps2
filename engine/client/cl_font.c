@@ -556,11 +556,9 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 
 	if( font->type != FONT_FIXED || REF_GET_PARM( PARM_TEX_GLFORMAT, font->hFontTexture ) == 0x8045 ) // GL_LUMINANCE8_ALPHA8
 	{
-		// Ugly :(
 		//outline
- 		//ref.dllFuncs.Color4ub( 1, 1, 1, 128 );
-		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
-		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+ 		ref.dllFuncs.Color4ub( 1, 1, 1, 128 );
+		ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 		//normal
 		ref.dllFuncs.Color4ub( color[0], color[1], color[2], color[3] );
 		ref.dllFuncs.R_DrawStretchPic(new_x, new_y, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
