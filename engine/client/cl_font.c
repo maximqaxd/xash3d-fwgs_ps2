@@ -22,12 +22,11 @@ GNU General Public License for more details.
 #include "cl_font.h"
 
 #define FONT_COUNT 2
-
-static Font* g_currentFont;
 static Font g_Fonts[FONT_COUNT];
-static string g_FontsPath[FONT_COUNT] = {"gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf"};
-static int g_FontsSize[FONT_COUNT] = {14, 14};
+static string g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
+static int g_FontsSize[FONT_COUNT] = { 13, 13 };
 static rgba_t nullColor = { 255, 255, 255, 255 };
+static Font* g_currentFont;
 
 qboolean CL_FixedFont( cl_font_t *font )
 {
@@ -57,12 +56,16 @@ static int CL_LoadFontTexture( const char *fontname, uint texFlags, int *width )
 
 	for (int i = 0; i < FONT_COUNT; i++)
 	{
-		if (Font_Init( &g_Fonts[i], g_FontsPath[i], g_FontsSize[i] ))
-			Con_Printf( "Unable to create font %s\n", g_FontsPath[i] );
+		if (!Font_Init( &g_Fonts[i], g_FontsPath[i], g_FontsSize[i] ))
+		{
+			Con_Printf(S_ERROR"Unable to create font %s\n", g_FontsPath[i]);
+			continue;
+		}
 		Font_SetWidth(&g_Fonts[i], g_FontsSize[i]);
+		g_currentFont = &g_Fonts[i];
+		break;
 	}
 
-	g_currentFont = &g_Fonts[0];
 	return tex;
 }
 
@@ -418,18 +421,20 @@ qboolean Font_Init(Font* self, char* name, int tall)
 	if( !self )
 		return false;
 
-
+	COM_FreeFile(self->m_pFontData);
 	self->m_pFontData = COM_LoadFileForMe( name, &len );
-
-	if( !stbtt_InitFont( &self->m_fontInfo, self->m_pFontData, 0 ) )
+	if (self->m_pFontData == NULL)
 		return false;
 
-	self->scale = stbtt_ScaleForPixelHeightPrecision( &self->m_fontInfo, tall + 4 );
+	if (!stbtt_InitFont(&self->m_FontInfo, self->m_pFontData, 0))
+		return false;
 
-	stbtt_GetFontVMetrics( &self->m_fontInfo, &self->m_iAscent, NULL, NULL );
+	self->scale = stbtt_ScaleForPixelHeightPrecision( &self->m_FontInfo, tall + 4 );
+
+	stbtt_GetFontVMetrics( &self->m_FontInfo, &self->m_iAscent, NULL, NULL );
 	self->m_iAscent = round( self->m_iAscent * self->scale );
 
-	stbtt_GetFontBoundingBox( &self->m_fontInfo, &x0, &y0, &x1, &y1 );
+	stbtt_GetFontBoundingBox( &self->m_FontInfo, &x0, &y0, &x1, &y1 );
 	self->m_iHeight = round(( y1 - y0 ) * self->scale ); // maybe wrong!
 	self->m_iMaxCharWidth = round(( x1 - x0 ) * self->scale ); // maybe wrong!
 
@@ -440,81 +445,80 @@ int Font_CheckCharExists(Font* self, int ch)
 {
 	for (int i = 0; i < self->m_iCharCount; i++)
 	{
-		if (65536 * self->m_iWidth + ch == self->m_iBuffer[i])
+		if (Font_GetTexIndex(self, ch) == self->m_iBuffer[i])
 			return i;
 	}
 
 	return -1;
 }
 
-
+const int RGBA_Channels = 4; // RGBA Channels
 int Font_LoadChar(Font* self, int ch)
 {
-	byte *buf, *dst;
+	byte *buf;
 
-	int id, bm_top, bm_left, bm_rows, bm_width;
+	int id, bm_top, bm_left, bm_height, bm_width;
 	char texname[30];
 
 	int iCallBack = Font_CheckCharExists(self, ch);
 	if (iCallBack > -1) return iCallBack;
 
-	buf = stbtt_GetCodepointBitmap( &self->m_fontInfo, self->scale, self->scale, ch, &bm_width, &bm_rows, &bm_left, &bm_top );
+	buf = stbtt_GetCodepointBitmap( &self->m_FontInfo, self->scale, self->scale, ch, &bm_width, &bm_height, &bm_left, &bm_top );
 
-	Q_snprintf( texname, sizeof( texname ), "font_%i", 65536 * self->m_iWidth + ch);
+	Q_snprintf( texname, sizeof( texname ), "font_%i", Font_GetTexIndex(self, ch));
 
 	if (!(id = ref.dllFuncs.GL_FindTexture(texname)))
 	{
-		byte *rgbData = malloc(bm_rows * bm_width * 4);
-		for (int i = 0; i < bm_rows; i++)
+		byte *rgbData = malloc(bm_width * bm_height * RGBA_Channels);
+		if (!rgbData) return -1;
+
+		for (int i = 0; i < bm_width * bm_height; i++)
 		{
-			for (int j = 0; j < bm_width; j++)
-			{
-				unsigned int index = i * bm_width + j;
-				unsigned char pixel_value = buf[index];
-				int rgbIndex = (i * bm_width + j) * 4;
-				rgbData[rgbIndex + 0] = 255;
-				rgbData[rgbIndex + 1] = 255;
-				rgbData[rgbIndex + 2] = 255;
-				rgbData[rgbIndex + 3] = pixel_value;//(pixel_value > 90) ? 255 : 0;
-			}
+			int rgbIndex = i * RGBA_Channels;
+			rgbData[rgbIndex + 0] = 255; // R
+			rgbData[rgbIndex + 1] = 255; // G
+			rgbData[rgbIndex + 2] = 255; // B
+			rgbData[rgbIndex + 3] = buf[i]; // A
 		}
 
-		id = ref.dllFuncs.GL_CreateTexture(texname, bm_width, bm_rows, rgbData, TF_IMAGE | TF_HAS_ALPHA);
+		id = ref.dllFuncs.GL_CreateTexture(texname, bm_width, bm_height, rgbData, TF_IMAGE | TF_HAS_ALPHA);
 
 		free(rgbData);
 	}
+	free(buf);
 
-	self->m_tFontTexture[self->m_iCharCount].m_iTexture = id;
-	self->m_tFontTexture[self->m_iCharCount].m_iXOff = bm_left;
-	self->m_tFontTexture[self->m_iCharCount].m_iYOff = bm_top;
-	self->m_tFontTexture[self->m_iCharCount].m_iWidth = bm_width;
-	self->m_tFontTexture[self->m_iCharCount].m_iHeight = bm_rows;
-	self->m_tFontTexture[self->m_iCharCount].Char = ch;
-	self->m_tFontTexture[self->m_iCharCount].pTexture = buf;
-	// Font_AddCharInToPage(self, &self->m_tFontTexture[self->m_iCharCount]);
+	self->m_Char[self->m_iCharCount].m_iTexture = id;
+	self->m_Char[self->m_iCharCount].m_iWidth = bm_width;
+	self->m_Char[self->m_iCharCount].m_iHeight = bm_height;
+	self->m_Char[self->m_iCharCount].m_iXOff = bm_left;
+	self->m_Char[self->m_iCharCount].m_iYOff = bm_top;
+	self->m_Char[self->m_iCharCount].m_iChar = ch;
+	// Font_AddCharInToPage(self, &self->m_Char[self->m_iCharCount]);
 
-	self->m_iBuffer[self->m_iCharCount] = 65536 * self->m_iWidth + ch;
-	self->m_iCharCount++;
-	return (self->m_iCharCount - 1);
+	self->m_iBuffer[self->m_iCharCount] = Font_GetTexIndex(self, ch);
+	return self->m_iCharCount++;
 }
 
 CHARINFO* Font_GetChar(Font* self, int ch)
 {
-	return &self->m_tFontTexture[Font_LoadChar(self, ch)];
+	int CharIndex = Font_LoadChar(self, ch);
+	if (CharIndex == -1)
+		return NULL;
+	return &self->m_Char[CharIndex];
 }
 
 int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int flags)
 {
 	CHARINFO* pCharInfo;
 
-	if (stbtt_FindGlyphIndex( &g_currentFont->m_fontInfo, number ) == 0)
+	if (!stbtt_FindGlyphIndex( &g_currentFont->m_FontInfo, number ))
 	{
 		for (int i = 0; i < FONT_COUNT; i++)
 		{
-			if (stbtt_FindGlyphIndex( &g_Fonts[i].m_fontInfo, number ) == 0)
+			if (!stbtt_FindGlyphIndex( &g_Fonts[i].m_FontInfo, number ))
 				continue;
-			else
-				break;
+			g_currentFont = &g_Fonts[i];
+			break;
 		}
 		return 0;
 	}
@@ -527,35 +531,52 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 			return CL_CalcTabStop( font, x );
 		return 0;
 	}
+
 	pCharInfo = Font_GetChar(g_currentFont, number);
+	if (pCharInfo == NULL)
+		return 0;
 	
 	if( !FBitSet( flags, FONT_DRAW_NORENDERMODE ))
 		CL_SetFontRendermode( font );
 
+	float new_x, new_y, new_w, new_h;
+	new_x = x;
+	new_y = y + (pCharInfo->m_iYOff + g_currentFont->m_iHeight) * font->scale;
+	new_w = pCharInfo->m_iWidth * font->scale;
+	new_h = pCharInfo->m_iHeight * font->scale;
+	if( FBitSet( flags, FONT_DRAW_HUD ))
+		SPR_AdjustSize( &new_x, &new_y, &new_w, &new_h );
+
 	if( font->type != FONT_FIXED || REF_GET_PARM( PARM_TEX_GLFORMAT, font->hFontTexture ) == 0x8045 ) // GL_LUMINANCE8_ALPHA8
 	{
+		// Ugly :(
 		//outline
- 		ref.dllFuncs.Color4ub( 1, 1, 1, 255 );
-		ref.dllFuncs.R_DrawStretchPic( x + pCharInfo->m_iXOff + 1, y + pCharInfo->m_iYOff + 1, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
-		ref.dllFuncs.R_DrawStretchPic( x + pCharInfo->m_iXOff + 1, y + pCharInfo->m_iYOff + 1 + 1, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+ 		//ref.dllFuncs.Color4ub( 1, 1, 1, 128 );
+		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 		//normal
 		ref.dllFuncs.Color4ub( color[0], color[1], color[2], color[3] );
-		ref.dllFuncs.R_DrawStretchPic( x + pCharInfo->m_iXOff, y + pCharInfo->m_iYOff, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+		ref.dllFuncs.R_DrawStretchPic(new_x, new_y, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 		//bold
-		ref.dllFuncs.R_DrawStretchPic( x + pCharInfo->m_iXOff + 1, y + pCharInfo->m_iYOff, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+		ref.dllFuncs.R_DrawStretchPic(new_x + 1, new_y, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 
 	}
 	else
 	{
  		ref.dllFuncs.Color4ub( 255, 255, 255, color[3] );
-		ref.dllFuncs.R_DrawStretchPic( x + pCharInfo->m_iXOff, y + pCharInfo->m_iYOff, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+		ref.dllFuncs.R_DrawStretchPic( new_x + pCharInfo->m_iXOff, y + pCharInfo->m_iYOff, pCharInfo->m_iWidth, pCharInfo->m_iHeight, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 	}
 
-	return pCharInfo->m_iWidth + pCharInfo->m_iXOff;
+	return (pCharInfo->m_iXOff + pCharInfo->m_iWidth) * font->scale;
 	
 }
 
 void Font_SetWidth(Font* self, int iWidth)
 {
 	self->m_iWidth = self->m_iHeight = iWidth;
+}
+
+int Font_GetTexIndex(Font* self, int ch)
+{
+	return 65536 * self->m_iWidth + ch;
 }
