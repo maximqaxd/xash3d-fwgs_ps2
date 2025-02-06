@@ -23,7 +23,7 @@ GNU General Public License for more details.
 
 #define FONT_COUNT 2
 static Font g_Fonts[FONT_COUNT];
-static string g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
+static const char* g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
 static int g_FontsSize[FONT_COUNT] = { 13, 13 };
 static rgba_t nullColor = { 0, 0, 0, 0 };
 static Font* g_currentFont;
@@ -412,9 +412,8 @@ void CL_DrawStringLen( cl_font_t *font, const char *s, int *width, int *height, 
 
 /* Font Class */
 
-qboolean Font_Init(Font* self, char* name, int tall)
+qboolean Font_Init(Font* self, const char* name, int tall)
 {
-	char font_face_path[256];
 	int len = 0;
 	int x0, y0, x1, y1;
 
