@@ -40,7 +40,7 @@ typedef struct {
     CHARINFO m_Char[FONTS_MAX_BUFFER];
 } Font;
 
-int Font_Init(Font* self, char* name, int tall);
+int Font_Init(Font* self, const char* name, int tall);
 int Font_CheckCharExists(Font* self, int ch);
 int Font_LoadChar(Font* self, int ch);
 CHARINFO* Font_GetChar(Font* self, int ch);

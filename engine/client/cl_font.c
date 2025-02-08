@@ -23,9 +23,9 @@ GNU General Public License for more details.
 
 #define FONT_COUNT 2
 static Font g_Fonts[FONT_COUNT];
-static string g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
+static const char* g_FontsPath[FONT_COUNT] = { "gfx/fonts/tahoma.ttf", "gfx/fonts/FiraSans-Regular.ttf" };
 static int g_FontsSize[FONT_COUNT] = { 13, 13 };
-static rgba_t nullColor = { 255, 255, 255, 255 };
+static rgba_t nullColor = { 0, 0, 0, 0 };
 static Font* g_currentFont;
 
 qboolean CL_FixedFont( cl_font_t *font )
@@ -412,9 +412,8 @@ void CL_DrawStringLen( cl_font_t *font, const char *s, int *width, int *height, 
 
 /* Font Class */
 
-qboolean Font_Init(Font* self, char* name, int tall)
+qboolean Font_Init(Font* self, const char* name, int tall)
 {
-	char font_face_path[256];
 	int len = 0;
 	int x0, y0, x1, y1;
 
@@ -540,6 +539,9 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 	pCharInfo = Font_GetChar(g_currentFont, number);
 	if (pCharInfo == NULL)
 		return 0;
+
+	if (color == nullColor)
+		return (pCharInfo->m_iXOff + pCharInfo->m_iWidth) * font->scale;
 	
 	if( !FBitSet( flags, FONT_DRAW_NORENDERMODE ))
 		CL_SetFontRendermode( font );
@@ -553,11 +555,9 @@ int Font_DrawChar(cl_font_t *font, rgba_t color, int x, int y, int number, int f
 
 	if( font->type != FONT_FIXED || REF_GET_PARM( PARM_TEX_GLFORMAT, font->hFontTexture ) == 0x8045 ) // GL_LUMINANCE8_ALPHA8
 	{
-		// Ugly :(
 		//outline
- 		//ref.dllFuncs.Color4ub( 1, 1, 1, 128 );
-		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
-		//ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
+ 		ref.dllFuncs.Color4ub( 1, 1, 1, 128 );
+		ref.dllFuncs.R_DrawStretchPic( new_x + 2, new_y + 1, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
 		//normal
 		ref.dllFuncs.Color4ub( color[0], color[1], color[2], color[3] );
 		ref.dllFuncs.R_DrawStretchPic(new_x, new_y, new_w, new_h, 0.0f, 0.0f, 1.0f, 1.0f, pCharInfo->m_iTexture);
