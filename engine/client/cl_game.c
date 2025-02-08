@@ -306,21 +306,22 @@ void SPR_AdjustSize( float *x, float *y, float *w, float *h )
 
 static void SPR_AdjustTexCoords( int texnum, float width, float height, float *s1, float *t1, float *s2, float *t2 )
 {
-	if( REF_GET_PARM( PARM_TEX_FILTERING, texnum ))
-	{
-		if( refState.width != clgame.scrInfo.iWidth )
-		{
-			// align to texel if scaling
-			*s1 += 0.5f;
-			*s2 -= 0.5f;
-		}
+	const qboolean filtering = REF_GET_PARM( PARM_TEX_FILTERING, texnum );
+	const int xremainder = refState.width % clgame.scrInfo.iWidth;
+	const int yremainder = refState.height % clgame.scrInfo.iHeight;
 
-		if( refState.height != clgame.scrInfo.iHeight )
-		{
-			// align to texel if scaling
-			*t1 += 0.5f;
-			*t2 -= 0.5f;
-		}
+	if(( filtering || xremainder ) && refState.width != clgame.scrInfo.iWidth )
+	{
+		// align to texel if scaling
+		*s1 += 0.5f;
+		*s2 -= 0.5f;
+	}
+
+	if(( filtering || yremainder ) && refState.height != clgame.scrInfo.iHeight )
+	{
+		// align to texel if scaling
+		*t1 += 0.5f;
+		*t2 -= 0.5f;
 	}
 
 	*s1 /= width;
@@ -1703,7 +1704,12 @@ int GAME_EXPORT CL_GetScreenInfo( SCREENINFO *pscrinfo )
 	clgame.scrInfo.iSize = sizeof( clgame.scrInfo );
 	clgame.scrInfo.iFlags = SCRINFO_SCREENFLASH;
 
-	if( scale_factor && scale_factor != 1.0f )
+	if( hud_scale.value >= 320.0f && hud_scale.value >= hud_scale_minimal_width.value )
+	{
+		scale_factor = refState.width / hud_scale.value;
+		apply_scale_factor = true;
+	}
+	else if( scale_factor && scale_factor != 1.0f )
 	{
 		float scaled_width = (float)refState.width / scale_factor;
 		if( scaled_width >= hud_scale_minimal_width.value )
@@ -1765,7 +1771,7 @@ static cvar_t *GAME_EXPORT pfnCvar_RegisterClientVariable( const char *szName, c
 		|| !Q_stricmp( szName, "sensitivity" ))
 		flags |= FCVAR_PRIVILEGED;
 
-	return (cvar_t *)Cvar_Get( szName, szValue, flags|FCVAR_CLIENTDLL, Cvar_BuildAutoDescription( szName, flags|FCVAR_CLIENTDLL ));
+	return (cvar_t *)Cvar_Get( szName, szValue, flags|FCVAR_CLIENTDLL, NULL );
 }
 
 static int GAME_EXPORT Cmd_AddClientCommand( const char *cmd_name, xcommand_t function )
@@ -3427,7 +3433,7 @@ static void GAME_EXPORT NetAPI_SendRequest( int context, int request, int flags,
 		return;
 	}
 
-	if( remote_address->type == NA_IPX || remote_address->type == NA_BROADCAST_IPX )
+	if( NET_NetadrType( remote_address ) == NA_IPX || NET_NetadrType( remote_address ) == NA_BROADCAST_IPX )
 		return; // IPX no longer support
 
 	if( request == NETAPI_REQUEST_SERVERLIST )

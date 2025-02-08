@@ -57,6 +57,7 @@ enum
 //
 int Q_buildnum( void );
 int Q_buildnum_date( const char *date );
+int Q_buildnum_iso( const char *date );
 int Q_buildnum_compat( void );
 const char *Q_PlatformStringByID( const int platform );
 const char *Q_buildos( void );
@@ -64,6 +65,8 @@ const char *Q_ArchitectureStringByID( const int arch, const uint abi, const int 
 const char *Q_buildarch( void );
 extern const char *g_buildcommit;
 extern const char *g_buildbranch;
+extern const char *g_build_date;
+extern const char *g_buildcommit_date;
 
 //
 // crtlib.c
@@ -138,24 +141,29 @@ static inline char Q_tolower( const char in )
 	return out;
 }
 
-static inline qboolean Q_isdigit( const char *str )
+static inline qboolean Q_istype( const char *str, int (*istype)( int c ))
 {
 	if( likely( str && *str ))
 	{
-		while( isdigit( *str )) str++;
+		while( istype( *str )) str++;
 		if( !*str ) return true;
 	}
 	return false;
 }
 
+static inline qboolean Q_isdigit( const char *str )
+{
+	return Q_istype( str, isdigit );
+}
+
+static inline qboolean Q_isalpha( const char *str )
+{
+	return Q_istype( str, isalpha );
+}
+
 static inline qboolean Q_isspace( const char *str )
 {
-	if( likely( str && *str ))
-	{
-		while( isspace( *str ) ) str++;
-		if( !*str ) return true;
-	}
-	return false;
+	return Q_istype( str, isspace );
 }
 
 static inline int Q_strcmp( const char *s1, const char *s2 )
